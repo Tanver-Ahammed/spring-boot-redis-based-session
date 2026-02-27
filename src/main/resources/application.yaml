@@ -1,3 +1,5 @@
+server:
+  forward-headers-strategy: FRAMEWORK
 spring:
   application:
     name: spring-boot-redis-based-session
@@ -5,4 +7,9 @@ spring:
     redis:
       host: localhost
       port: 6379
-      database: 7
+      database: 0
+logging:
+  level:
+    root: info
+  file:
+    enabled: false

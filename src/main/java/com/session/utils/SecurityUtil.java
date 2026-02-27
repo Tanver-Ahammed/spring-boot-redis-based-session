@@ -1,6 +1,8 @@
 package com.session.utils;
 
 import jakarta.servlet.http.HttpServletRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 
@@ -9,8 +11,11 @@ import java.util.stream.Collectors;
 
 public class SecurityUtil {
 
-	public static String getUserInfoMessage(Authentication authentication, HttpServletRequest request) {
-		if (Objects.isNull(authentication)) {
+    private static final Logger log = LoggerFactory.getLogger(SecurityUtil.class);
+
+    public static String getUserInfoMessage(Authentication authentication, HttpServletRequest request) {
+		log.info("Info :: method called");
+        if (Objects.isNull(authentication)) {
 			return "<h1 style='color:red;'>No authenticated user found. URL accessed: " + "<span style='color:blue;'>"
 					+ request.getRequestURL() + "</span></h1>";
 		}
