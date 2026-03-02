@@ -3,11 +3,12 @@ server:
 spring:
   application:
     name: spring-boot-redis-based-session
-  data:
-    redis:
-      host: localhost
-      port: 6379
-      database: 0
+  redis:
+    host: localhost
+    port: 6379
+    database: 0
+  session:
+    timeout: 20s
 logging:
   level:
     root: info

@@ -1,13 +1,13 @@
 package com.session.utils;
 
 import com.session.enums.Role;
-import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 
+import javax.servlet.http.HttpServletRequest;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -31,8 +31,8 @@ public class SecurityUtil {
         URL_ACCESS_RULES.put("/test", Role.SUPER_ADMIN.name() + "," + Role.ADMIN.name() + "," + Role.OPERATOR.name());
     }
 
-    public static String getUserInfoMessage(Authentication authentication,
-                                            HttpServletRequest request) {
+    public static String getUserInfoMessage(Authentication authentication, HttpServletRequest request) {
+
         log.info("Info :: method called");
 
         String url = request.getRequestURL().toString();
@@ -45,6 +45,7 @@ public class SecurityUtil {
 
         if (Objects.isNull(authentication) || !authentication.isAuthenticated()
                 || authentication instanceof AnonymousAuthenticationToken) {
+
             return "<h1 style='color:red;'>No authenticated user found. URL accessed: "
                     + "<span style='color:blue;'>" + url + "</span>"
                     + " | <a href='/login'>Login</a></h1>"
@@ -66,7 +67,8 @@ public class SecurityUtil {
     }
 
     private static String buildAccessibleUrlList(Authentication authentication,
-                                                 LinkedHashMap<String, String> urlAccessRules) {
+            LinkedHashMap<String, String> urlAccessRules) {
+
         boolean isAuthenticated = Objects.nonNull(authentication)
                 && authentication.isAuthenticated()
                 && !(authentication instanceof AnonymousAuthenticationToken);
@@ -88,29 +90,44 @@ public class SecurityUtil {
     }
 
     private static boolean isAccessible(String rule, boolean isAuthenticated,
-                                        Collection<? extends GrantedAuthority> authorities) {
-        return switch (rule) {
-            case "permitAll" -> true;
-            case "denyAll" -> false;
-            case "authenticated" -> isAuthenticated;
-            default -> isAuthenticated && Arrays.stream(rule.split(","))
-                    .map(String::trim)
-                    .anyMatch(r -> authorities.stream()
-                            .anyMatch(a -> a.getAuthority().equals(r)));
-        };
+            Collection<? extends GrantedAuthority> authorities) {
 
+        switch (rule) {
+            case "permitAll":
+                return true;
+
+            case "denyAll":
+                return false;
+
+            case "authenticated":
+                return isAuthenticated;
+
+            default:
+                if (!isAuthenticated) {
+                    return false;
+                }
+
+                return Arrays.stream(rule.split(","))
+                        .map(String::trim)
+                        .anyMatch(r -> authorities.stream().anyMatch(a -> a.getAuthority().equals(r)));
+        }
     }
 
     private static String getBadgeHtml(String rule) {
-        return switch (rule) {
-            case "permitAll" ->
-                    "<span style='background:green;color:white;padding:1px 6px;border-radius:4px;font-size:12px;'>PUBLIC</span>";
-            case "authenticated" ->
-                    "<span style='background:dodgerblue;color:white;padding:1px 6px;border-radius:4px;font-size:12px;'>AUTH</span>";
-            case "denyAll" ->
-                    "<span style='background:red;color:white;padding:1px 6px;border-radius:4px;font-size:12px;'>DENIED</span>";
-            default ->
-                    "<span style='background:orange;color:white;padding:1px 6px;border-radius:4px;font-size:12px;'>" + rule + "</span>";
-        };
+
+        switch (rule) {
+            case "permitAll":
+                return "<span style='background:green;color:white;padding:1px 6px;border-radius:4px;font-size:12px;'>PUBLIC</span>";
+
+            case "authenticated":
+                return "<span style='background:dodgerblue;color:white;padding:1px 6px;border-radius:4px;font-size:12px;'>AUTH</span>";
+
+            case "denyAll":
+                return "<span style='background:red;color:white;padding:1px 6px;border-radius:4px;font-size:12px;'>DENIED</span>";
+
+            default:
+                return "<span style='background:orange;color:white;padding:1px 6px;border-radius:4px;font-size:12px;'>"
+                        + rule + "</span>";
+        }
     }
 }
