@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Redis & Spring Boot Sessions</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=Fira+Code:wght@400;500&display=swap');
+  :root {
+    --red: #DC382C; --dark: #0f0f1a; --card: rgba(255,255,255,0.05);
+    --border: rgba(255,255,255,0.1); --teal: #00D4AA; --blue: #4FC3F7;
+    --purple: #9C7CF4; --yellow: #FFD93D;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'Inter',sans-serif; background:var(--dark); color:#e0e0e0; overflow-x:hidden; }
+  .nav {
+    position:fixed; top:0; left:0; right:0; height:54px;
+    background:rgba(10,10,20,0.97); backdrop-filter:blur(12px);
+    border-bottom:1px solid var(--border);
+    display:flex; align-items:center; justify-content:space-between; padding:0 2rem; z-index:100;
+  }
+  .logo { display:flex; align-items:center; gap:8px; }
+  .logo .dot { width:10px; height:10px; border-radius:50%; background:var(--red); box-shadow:0 0 8px var(--red); }
+  .logo span { font-weight:700; color:#fff; font-size:0.9rem; }
+  .tabs { display:flex; gap:3px; }
+  .tab { padding:5px 13px; border-radius:6px; font-size:0.76rem; font-weight:500; cursor:pointer; color:#999; border:1px solid transparent; transition:all .2s; }
+  .tab:hover,.tab.on { background:rgba(220,56,44,.15); border-color:rgba(220,56,44,.3); color:#fff; }
+  .slide { display:none; min-height:100vh; padding:74px 0 60px; animation:fadeIn .3s; }
+  .slide.on { display:block; }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
+  .wrap { max-width:1100px; margin:0 auto; padding:0 2rem; }
+  .sh { text-align:center; margin-bottom:2.5rem; }
+  .badge { display:inline-block; background:rgba(220,56,44,.12); border:1px solid rgba(220,56,44,.3); border-radius:50px; padding:4px 14px; font-size:.73rem; color:#ff8a80; margin-bottom:10px; }
+  .sh h2 { font-size:1.9rem; font-weight:700; color:#fff; }
+  .sh p { color:#999; margin-top:6px; font-size:.9rem; }
+  .g2 { display:grid; grid-template-columns:1fr 1fr; gap:1.2rem; }
+  .g3 { display:grid; grid-template-columns:repeat(3,1fr); gap:1.2rem; }
+  .g4 { display:grid; grid-template-columns:repeat(4,1fr); gap:1rem; }
+  .card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:1.3rem; transition:all .2s; }
+  .card:hover { transform:translateY(-3px); border-color:rgba(220,56,44,.3); }
+  .card h3 { font-size:.95rem; font-weight:600; color:#fff; margin-bottom:8px; }
+  .card p,.card li { font-size:.85rem; color:#bbb; line-height:1.65; }
+  .card ul { list-style:none; }
+  .card ul li { padding:3px 0; }
+  .card ul li::before { content:'▸ '; color:var(--red); }
+  .hl { background:linear-gradient(135deg,rgba(220,56,44,.1),rgba(156,124,244,.08)); border:1px solid rgba(220,56,44,.22); border-radius:12px; padding:1.3rem; }
+  .code { background:#0d1117; border:1px solid rgba(255,255,255,.08); border-radius:10px; padding:1.1rem 1.3rem; font-family:'Fira Code',monospace; font-size:.8rem; line-height:1.75; overflow-x:auto; margin:.7rem 0; }
+  .kw { color:#FF79C6; } .cls { color:#8BE9FD; } .str { color:#F1FA8C; } .ann { color:#50FA7B; } .cm { color:#6272A4; font-style:italic; } .num { color:#BD93F9; }
+  .tag { display:inline-block; padding:2px 9px; border-radius:4px; font-size:.73rem; font-weight:600; }
+  .tr { background:rgba(220,56,44,.15); color:#ff8a80; border:1px solid rgba(220,56,44,.3); }
+  .tt { background:rgba(0,212,170,.12); color:var(--teal); border:1px solid rgba(0,212,170,.3); }
+  .tb { background:rgba(79,195,247,.12); color:var(--blue); border:1px solid rgba(79,195,247,.3); }
+  .tp { background:rgba(156,124,244,.12); color:var(--purple); border:1px solid rgba(156,124,244,.3); }
+  .ty { background:rgba(255,217,61,.12); color:var(--yellow); border:1px solid rgba(255,217,61,.3); }
+  .tl { border-collapse:collapse; width:100%; font-size:.85rem; }
+  .tl th { background:rgba(220,56,44,.15); color:#ff8a80; padding:9px 13px; text-align:left; font-weight:600; border-bottom:1px solid var(--border); }
+  .tl td { padding:9px 13px; border-bottom:1px solid rgba(255,255,255,.04); color:#ccc; }
+  .tl tr:hover td { background:rgba(255,255,255,.02); }
+  .check { color:var(--teal); } .cross { color:#ff8a80; }
+  .flow { display:flex; align-items:center; flex-wrap:wrap; gap:6px; justify-content:center; margin:1rem 0; }
+  .fbox { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:10px 15px; font-size:.8rem; text-align:center; min-width:105px; color:#ddd; }
+  .fbox.red { border-color:rgba(220,56,44,.4); background:rgba(220,56,44,.09); color:#ff8a80; }
+  .fbox.blu { border-color:rgba(79,195,247,.35); background:rgba(79,195,247,.07); }
+  .fbox.grn { border-color:rgba(0,212,170,.35); background:rgba(0,212,170,.07); }
+  .arrow { color:#555; font-size:1.1rem; }
+  .tl-wrap { position:relative; padding-left:1.8rem; }
+  .tl-wrap::before { content:''; position:absolute; left:6px; top:0; bottom:0; width:2px; background:linear-gradient(to bottom,var(--red),transparent); }
+  .tl-item { position:relative; margin-bottom:1.3rem; }
+  .tl-item::before { content:''; position:absolute; left:-22px; top:5px; width:9px; height:9px; border-radius:50%; background:var(--red); box-shadow:0 0 7px var(--red); }
+  .tl-item h4 { font-size:.92rem; font-weight:600; color:#fff; margin-bottom:3px; }
+  .tl-item p { font-size:.83rem; color:#aaa; line-height:1.5; }
+  .stat { text-align:center; }
+  .stat .n { font-size:2rem; font-weight:800; color:var(--red); }
+  .stat .l { font-size:.78rem; color:#999; margin-top:3px; }
+  .dots { position:fixed; bottom:18px; left:50%; transform:translateX(-50%); display:flex; gap:8px; z-index:100; }
+  .dot { width:7px; height:7px; border-radius:50%; background:rgba(255,255,255,.2); cursor:pointer; transition:all .2s; }
+  .dot.on { background:var(--red); box-shadow:0 0 5px var(--red); }
+  /* HERO */
+  .hero { min-height:calc(100vh - 54px); display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; background:radial-gradient(ellipse at center,rgba(220,56,44,.13) 0%,transparent 65%); position:relative; }
+  .hero h1 { font-size:clamp(2rem,5vw,3.6rem); font-weight:800; line-height:1.1; background:linear-gradient(135deg,#fff 0%,#ff8a80 45%,var(--red) 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; margin-bottom:14px; }
+  .hero p { font-size:1rem; color:#aaa; max-width:560px; line-height:1.65; margin-bottom:2.5rem; }
+  .hero-tags { display:flex; flex-wrap:wrap; gap:8px; justify-content:center; }
+  .hero-tag { background:var(--card); border:1px solid var(--border); border-radius:8px; padding:7px 14px; font-size:.82rem; color:#ccc; }
+  .pill { display:inline-flex; align-items:center; gap:5px; background:var(--card); border:1px solid var(--border); border-radius:7px; padding:5px 11px; font-size:.8rem; margin:3px; }
+  @media(max-width:768px){.g2,.g3,.g4{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<nav class="nav">
+  <div class="logo"><div class="dot"></div><span>Redis + Spring Boot</span></div>
+  <div class="tabs">
+    <div class="tab on" onclick="go(0)">Overview</div>
+    <div class="tab" onclick="go(1)">Basics</div>
+    <div class="tab" onclick="go(2)">Speed</div>
+    <div class="tab" onclick="go(3)">Jedis vs Lettuce</div>
+    <div class="tab" onclick="go(4)">Sessions</div>
+    <div class="tab" onclick="go(5)">Spring Boot</div>
+  </div>
+</nav>
+
+<!-- 0: HERO -->
+<div class="slide on" id="s0">
+  <div class="hero">
+    <div style="font-size:4.5rem;margin-bottom:12px">🔴</div>
+    <div style="display:inline-flex;align-items:center;gap:7px;background:rgba(220,56,44,.1);border:1px solid rgba(220,56,44,.3);border-radius:50px;padding:5px 15px;font-size:.78rem;color:#ff8a80;margin-bottom:20px">⚡ In-Memory Data Store</div>
+    <h1>Redis &amp;<br>Spring Boot Sessions</h1>
+    <p>From Redis fundamentals and performance architecture to client libraries and distributed session management.</p>
+    <div class="hero-tags">
+      <div class="hero-tag">📚 Redis Basics</div>
+      <div class="hero-tag">⚡ Single-Thread Performance</div>
+      <div class="hero-tag">🔌 Jedis vs Lettuce</div>
+      <div class="hero-tag">🔐 Session Management</div>
+      <div class="hero-tag">🌱 Spring Boot Setup</div>
+    </div>
+  </div>
+</div>
+
+<!-- 1: BASICS -->
+<div class="slide" id="s1">
+<div class="wrap">
+  <div class="sh">
+    <div class="badge">CHAPTER 01</div>
+    <h2>Redis Basics</h2>
+    <p>Remote Dictionary Server — open-source, in-memory data structure store</p>
+  </div>
+  <div class="g3" style="margin-bottom:1.3rem">
+    <div class="card">
+      <div style="font-size:1.7rem;margin-bottom:8px">💾</div>
+      <h3>What is Redis?</h3>
+      <ul><li>In-memory key-value store</li><li>Supports persistence (RDB/AOF)</li><li>Sub-millisecond latency</li><li>DB, cache &amp; message broker</li></ul>
+    </div>
+    <div class="card">
+      <div style="font-size:1.7rem;margin-bottom:8px">⚙️</div>
+      <h3>Core Properties</h3>
+      <ul><li>Single-threaded command exec</li><li>Atomic operations</li><li>Replication &amp; clustering</li><li>Pub/Sub messaging</li></ul>
+    </div>
+    <div class="card">
+      <div style="font-size:1.7rem;margin-bottom:8px">🎯</div>
+      <h3>Use Cases</h3>
+      <ul><li>Session storage</li><li>Caching layer</li><li>Rate limiting</li><li>Leaderboards &amp; counters</li></ul>
+    </div>
+  </div>
+  <div class="hl" style="margin-bottom:1.3rem">
+    <h3 style="color:#ff8a80;margin-bottom:.8rem">📦 Supported Data Structures</h3>
+    <div>
+      <div class="pill">🔤 String</div><div class="pill">📋 List</div><div class="pill">🗂️ Hash</div>
+      <div class="pill">🎯 Set</div><div class="pill">🏅 Sorted Set</div><div class="pill">🔢 Bitmap</div>
+      <div class="pill">📍 Geo</div><div class="pill">📊 HyperLogLog</div><div class="pill">📡 Stream</div>
+    </div>
+  </div>
+  <div class="g2">
+    <div>
+      <h4 style="color:#ff8a80;margin-bottom:8px">⌨️ Key Commands</h4>
+      <div class="code">
+<span class="cm"># String — set with TTL</span>
+SET user:1:name <span class="str">"Alice"</span> EX <span class="num">3600</span>
+GET user:1:name
+
+<span class="cm"># Hash</span>
+HSET session:abc token <span class="str">"xyz"</span> userId <span class="str">"1"</span>
+HGETALL session:abc
+
+<span class="cm"># List</span>
+LPUSH queue:jobs <span class="str">"job1"</span>
+RPOP  queue:jobs
+
+<span class="cm"># TTL management</span>
+TTL user:1:name      <span class="cm"># seconds left</span>
+EXPIRE key <span class="num">1800</span></div>
+    </div>
+    <div>
+      <h4 style="color:#ff8a80;margin-bottom:8px">💡 Persistence Modes</h4>
+      <div class="card" style="margin-bottom:8px">
+        <span class="tag tb">RDB</span>
+        <p style="margin-top:8px">Point-in-time snapshots at configurable intervals. Compact binary format, fast restart. May lose recent writes on crash.</p>
+      </div>
+      <div class="card">
+        <span class="tag tt">AOF</span>
+        <p style="margin-top:8px">Append-only log of every write. Highly durable, configurable fsync. Larger files and slower restart vs RDB.</p>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- 2: SPEED -->
+<div class="slide" id="s2">
+<div class="wrap">
+  <div class="sh">
+    <div class="badge">CHAPTER 02</div>
+    <h2>Why is Redis So Fast?</h2>
+    <p>Single-threaded yet blazingly fast — the architecture behind the speed</p>
+  </div>
+  <div class="g4" style="margin-bottom:1.3rem">
+    <div class="stat card"><div class="n">&lt;1ms</div><div class="l">Average Latency</div></div>
+    <div class="stat card"><div class="n">1M+</div><div class="l">Ops / second</div></div>
+    <div class="stat card"><div class="n">1</div><div class="l">Main Exec Thread</div></div>
+    <div class="stat card"><div class="n">I/O</div><div class="l">Multi-Threaded (v6+)</div></div>
+  </div>
+  <div class="g2" style="margin-bottom:1.3rem">
+    <div>
+      <h4 style="color:var(--yellow);margin-bottom:1rem">⚡ 5 Reasons Redis is Fast</h4>
+      <div class="tl-wrap">
+        <div class="tl-item">
+          <h4>🧠 In-Memory Storage</h4>
+          <p>All data lives in RAM. No disk I/O for reads/writes. RAM access is ~100,000× faster than SSD.</p>
+        </div>
+        <div class="tl-item">
+          <h4>🧵 Single-Threaded Command Execution</h4>
+          <p>Zero context switching, zero lock contention, no race conditions. Commands execute atomically in strict order.</p>
+        </div>
+        <div class="tl-item">
+          <h4>📡 I/O Multiplexing (epoll/kqueue)</h4>
+          <p>One thread handles thousands of connections with OS-level non-blocking I/O via an event loop.</p>
+        </div>
+        <div class="tl-item">
+          <h4>🔧 Optimized Data Structures</h4>
+          <p>Custom C implementations with memory-efficient encodings: ziplist, listpack, intset for small objects.</p>
+        </div>
+        <div class="tl-item">
+          <h4>🔗 Lightweight RESP Protocol</h4>
+          <p>Simple Redis Serialization Protocol minimizes parsing overhead on both client and server.</p>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="hl" style="margin-bottom:1rem">
+        <h4 style="color:var(--blue);margin-bottom:.8rem">🧵 Single-Thread — The Myth Busted</h4>
+        <p style="font-size:.85rem;color:#bbb;line-height:1.65;margin-bottom:12px">Redis is single-threaded for <strong style="color:#fff">command execution</strong>. Since Redis 6.0, I/O operations (reading/writing network data) are multi-threaded for higher throughput.</p>
+        <div style="display:flex;flex-direction:column;gap:7px">
+          <div style="display:flex;align-items:center;gap:10px"><span class="tag tr">v1–5.x</span><span style="font-size:.82rem;color:#bbb">Fully single-threaded</span></div>
+          <div style="display:flex;align-items:center;gap:10px"><span class="tag tt">v6.0+</span><span style="font-size:.82rem;color:#bbb">Multi-threaded I/O, single-threaded exec</span></div>
+          <div style="display:flex;align-items:center;gap:10px"><span class="tag tp">v7.0+</span><span style="font-size:.82rem;color:#bbb">Enhanced background threading</span></div>
+        </div>
+      </div>
+      <div class="card">
+        <h4 style="color:#fff;margin-bottom:.8rem">📊 Thread Roles (Redis 6+)</h4>
+        <div style="font-size:.83rem;color:#ccc">
+          <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)"><span>Network Read</span><span class="tag tb">Multi-thread</span></div>
+          <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)"><span>Command Parsing</span><span class="tag tb">Multi-thread</span></div>
+          <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)"><span>Command Execution</span><span class="tag tr">Single-thread</span></div>
+          <div style="display:flex;justify-content:space-between;padding:5px 0"><span>Network Write</span><span class="tag tb">Multi-thread</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="hl">
+    <h4 style="color:var(--yellow);margin-bottom:6px">⚠️ Single-Thread Gotchas</h4>
+    <p style="font-size:.85rem;color:#bbb;line-height:1.6">Avoid <strong style="color:#ff8a80">O(N) blocking commands</strong> like <code style="color:var(--yellow)">KEYS *</code>, <code style="color:var(--yellow)">LRANGE 0 -1</code> on huge datasets — they block all other clients. Use <code style="color:var(--yellow)">SCAN</code> for iteration and pipeline commands for batching to maintain throughput.</p>
+  </div>
+</div>
+</div>
+
+<!-- 3: JEDIS vs LETTUCE -->
+<div class="slide" id="s3">
+<div class="wrap">
+  <div class="sh">
+    <div class="badge">CHAPTER 03</div>
+    <h2>Jedis vs Lettuce</h2>
+    <p>Choosing the right Java Redis client for your application</p>
+  </div>
+  <div class="g2" style="margin-bottom:1.3rem">
+    <div class="card" style="border-color:rgba(220,56,44,.3)">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+        <span style="font-size:2rem">🎣</span>
+        <div><h3 style="font-size:1.15rem;color:#ff8a80">Jedis</h3><span class="tag tr">Classic</span></div>
+      </div>
+      <div style="font-size:.85rem;color:#ccc">
+        <div style="display:flex;gap:8px;padding:5px 0;border-bottom:1px solid var(--border)"><span class="check">✅</span> Simple and easy to use</div>
+        <div style="display:flex;gap:8px;padding:5px 0;border-bottom:1px solid var(--border)"><span class="check">✅</span> Synchronous (blocking)</div>
+        <div style="display:flex;gap:8px;padding:5px 0;border-bottom:1px solid var(--border)"><span class="check">✅</span> Mature, widely documented</div>
+        <div style="display:flex;gap:8px;padding:5px 0;border-bottom:1px solid var(--border)"><span class="cross">⚠️</span> Not thread-safe (use JedisPool)</div>
+        <div style="display:flex;gap:8px;padding:5px 0;border-bottom:1px solid var(--border)"><span class="cross">❌</span> No async/reactive support</div>
+        <div style="display:flex;gap:8px;padding:5px 0"><span class="cross">❌</span> Connection-per-thread model</div>
+      </div>
+    </div>
+    <div class="card" style="border-color:rgba(0,212,170,.3)">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+        <span style="font-size:2rem">🥬</span>
+        <div><h3 style="font-size:1.15rem;color:var(--teal)">Lettuce</h3><span class="tag tt">Modern Default</span></div>
+      </div>
+      <div style="font-size:.85rem;color:#ccc">
+        <div style="display:flex;gap:8px;padding:5px 0;border-bottom:1px solid var(--border)"><span class="check">✅</span> Thread-safe — shared connections</div>
+        <div style="display:flex;gap:8px;padding:5px 0;border-bottom:1px solid var(--border)"><span class="check">✅</span> Async &amp; Reactive (Project Reactor)</div>
+        <div style="display:flex;gap:8px;padding:5px 0;border-bottom:1px solid var(--border)"><span class="check">✅</span> Default client in Spring Boot</div>
+        <div style="display:flex;gap:8px;padding:5px 0;border-bottom:1px solid var(--border)"><span class="check">✅</span> Netty-based NIO</div>
+        <div style="display:flex;gap:8px;padding:5px 0;border-bottom:1px solid var(--border)"><span class="check">✅</span> Cluster &amp; Sentinel support</div>
+        <div style="display:flex;gap:8px;padding:5px 0"><span class="check">✅</span> Optional connection pooling</div>
+      </div>
+    </div>
+  </div>
+  <div class="card" style="margin-bottom:1.3rem">
+    <h3 style="margin-bottom:10px">📊 Feature Comparison</h3>
+    <table class="tl">
+      <tr><th>Feature</th><th>Jedis</th><th>Lettuce</th></tr>
+      <tr><td>Thread Safety</td><td><span class="cross">❌ Not safe</span></td><td><span class="check">✅ Thread-safe</span></td></tr>
+      <tr><td>Connection Model</td><td>Per-thread (JedisPool)</td><td>Shared single connection</td></tr>
+      <tr><td>Async / Reactive</td><td><span class="cross">❌ No</span></td><td><span class="check">✅ CompletableFuture + Mono/Flux</span></td></tr>
+      <tr><td>Spring Boot Default</td><td><span class="cross">❌ No</span></td><td><span class="check">✅ Yes (since Boot 2.x)</span></td></tr>
+      <tr><td>Underlying I/O</td><td>Java Sockets (BIO)</td><td>Netty (NIO)</td></tr>
+      <tr><td>Redis Cluster</td><td>✅ Supported</td><td><span class="check">✅ Better support</span></td></tr>
+    </table>
+  </div>
+  <div class="g2">
+    <div>
+      <h4 style="color:#ff8a80;margin-bottom:6px">🎣 Jedis Example</h4>
+      <div class="code">
+<span class="cm">// Thread-safe via JedisPool</span>
+JedisPool pool = <span class="kw">new</span> <span class="cls">JedisPool</span>(<span class="str">"localhost"</span>, <span class="num">6379</span>);
+
+<span class="kw">try</span> (Jedis jedis = pool.getResource()) {
+    jedis.set(<span class="str">"key"</span>, <span class="str">"value"</span>);
+    String val = jedis.get(<span class="str">"key"</span>);
+}</div>
+    </div>
+    <div>
+      <h4 style="color:var(--teal);margin-bottom:6px">🥬 Lettuce Example</h4>
+      <div class="code">
+<span class="cm">// Shared thread-safe connection</span>
+RedisClient client = <span class="cls">RedisClient</span>
+    .create(<span class="str">"redis://localhost"</span>);
+StatefulRedisConnection&lt;String,String&gt; conn
+    = client.connect();
+RedisCommands&lt;String,String&gt; cmd = conn.sync();
+
+cmd.set(<span class="str">"key"</span>, <span class="str">"value"</span>);
+String val = cmd.get(<span class="str">"key"</span>);</div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- 4: SESSION THEORY -->
+<div class="slide" id="s4">
+<div class="wrap">
+  <div class="sh">
+    <div class="badge">CHAPTER 04</div>
+    <h2>How Redis Session Works</h2>
+    <p>Distributed, stateless session management with Redis as the central store</p>
+  </div>
+  <div class="hl" style="margin-bottom:1.3rem">
+    <h4 style="color:var(--yellow);margin-bottom:1rem">🔄 Traditional vs Redis-Based Sessions</h4>
+    <div class="g2">
+      <div>
+        <h5 style="color:#ff8a80;margin-bottom:8px">❌ Sticky (In-Memory) Sessions</h5>
+        <div style="font-size:.83rem;color:#bbb;line-height:1.7;padding:10px;background:rgba(220,56,44,.06);border-radius:8px;border:1px solid rgba(220,56,44,.15)">
+          Browser → Server A → <em>stores session in memory</em><br>
+          Browser → Server B → <strong style="color:#ff8a80">Session not found! ❌</strong><br><br>
+          Problems: No horizontal scaling, no failover, sticky load balancing required.
+        </div>
+      </div>
+      <div>
+        <h5 style="color:var(--teal);margin-bottom:8px">✅ Redis-Based Sessions</h5>
+        <div style="font-size:.83rem;color:#bbb;line-height:1.7;padding:10px;background:rgba(0,212,170,.05);border-radius:8px;border:1px solid rgba(0,212,170,.15)">
+          Browser → Server A → Redis (stores session)<br>
+          Browser → Server B → Redis → <strong style="color:var(--teal)">Session found! ✅</strong><br><br>
+          Stateless servers, shared session store, full horizontal scaling.
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="card" style="margin-bottom:1.3rem">
+    <h4 style="color:#fff;margin-bottom:1rem">📡 Session Lifecycle — Login to Request</h4>
+    <div class="flow">
+      <div class="fbox blu"><div>🌐</div>Client Login</div>
+      <div class="arrow">→</div>
+      <div class="fbox red"><div>⚙️</div>Generate Session ID</div>
+      <div class="arrow">→</div>
+      <div class="fbox" style="border-color:rgba(220,56,44,.4);background:rgba(220,56,44,.09);color:#ff8a80"><div>🔴</div>Store in Redis<br><small>(HASH + TTL)</small></div>
+      <div class="arrow">→</div>
+      <div class="fbox blu"><div>🍪</div>Set-Cookie:<br>SESSION=id</div>
+    </div>
+    <div class="flow" style="margin-top:8px">
+      <div class="fbox blu"><div>📤</div>Next Request<br>+ Cookie</div>
+      <div class="arrow">→</div>
+      <div class="fbox red"><div>🔍</div>Extract ID<br>from Cookie</div>
+      <div class="arrow">→</div>
+      <div class="fbox" style="border-color:rgba(220,56,44,.4);background:rgba(220,56,44,.09);color:#ff8a80"><div>🔴</div>HGETALL<br>spring:session:id</div>
+      <div class="arrow">→</div>
+      <div class="fbox grn"><div>✅</div>Populate<br>SecurityContext</div>
+    </div>
+  </div>
+  <div class="g2">
+    <div class="card">
+      <h4 style="color:#fff;margin-bottom:8px">🗂️ Redis Session Data Structure</h4>
+      <div class="code">
+<span class="cm"># Spring Session Redis key pattern</span>
+spring:session:sessions:&lt;sessionId&gt;
+spring:session:sessions:expires:&lt;id&gt;
+
+<span class="cm"># Hash fields inside each session</span>
+HGETALL spring:session:sessions:abc123
+
+lastAccessedTime    → <span class="num">1700000000000</span>
+maxInactiveInterval → <span class="num">1800</span>
+creationTime        → <span class="num">1699998200000</span>
+sessionAttr:user    → <span class="str">"serialized_data"</span></div>
+    </div>
+    <div class="card">
+      <h4 style="color:#fff;margin-bottom:8px">⏰ TTL &amp; Expiration</h4>
+      <ul style="margin-bottom:12px">
+        <li>Redis TTL auto-expires stale sessions</li>
+        <li>Each request resets TTL (sliding window)</li>
+        <li>Default: 30 min inactivity timeout</li>
+        <li>Explicit <code style="color:var(--yellow)">DEL</code> on logout/invalidation</li>
+      </ul>
+      <div style="padding:10px;background:rgba(0,212,170,.06);border-radius:8px;border:1px solid rgba(0,212,170,.2);font-size:.82rem;color:#bbb">
+        💡 <strong style="color:#fff">Session fixation protection:</strong> Spring Session regenerates the session ID automatically after successful authentication.
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- 5: SPRING BOOT -->
+<div class="slide" id="s5">
+<div class="wrap">
+  <div class="sh">
+    <div class="badge">CHAPTER 05</div>
+    <h2>Spring Boot Integration</h2>
+    <p>Complete step-by-step Redis session setup</p>
+  </div>
+  <div class="g2" style="margin-bottom:1.3rem">
+    <div>
+      <h4 style="color:var(--yellow);margin-bottom:6px">1️⃣ pom.xml Dependencies</h4>
+      <div class="code">
+<span class="cm">&lt;!-- Redis + Session starters --&gt;</span>
+&lt;<span class="cls">dependency</span>&gt;
+  &lt;<span class="cls">groupId</span>&gt;org.springframework.boot&lt;/<span class="cls">groupId</span>&gt;
+  &lt;<span class="cls">artifactId</span>&gt;spring-boot-starter-data-redis&lt;/<span class="cls">artifactId</span>&gt;
+&lt;/<span class="cls">dependency</span>&gt;
+
+&lt;<span class="cls">dependency</span>&gt;
+  &lt;<span class="cls">groupId</span>&gt;org.springframework.session&lt;/<span class="cls">groupId</span>&gt;
+  &lt;<span class="cls">artifactId</span>&gt;spring-session-data-redis&lt;/<span class="cls">artifactId</span>&gt;
+&lt;/<span class="cls">dependency</span>&gt;</div>
+    </div>
+    <div>
+      <h4 style="color:var(--yellow);margin-bottom:6px">2️⃣ application.yml</h4>
+      <div class="code">
+spring:
+  data:
+    redis:
+      host: localhost
+      port: <span class="num">6379</span>
+      password: <span class="str">secret</span>
+      lettuce:
+        pool:
+          max-active: <span class="num">10</span>
+          max-idle: <span class="num">5</span>
+  session:
+    store-type: redis
+    redis:
+      namespace: <span class="str">myapp:session</span>
+      flush-mode: on-save
+    timeout: <span class="num">30m</span></div>
+    </div>
+  </div>
+  <div class="g2" style="margin-bottom:1.3rem">
+    <div>
+      <h4 style="color:var(--yellow);margin-bottom:6px">3️⃣ Config Class</h4>
+      <div class="code">
+<span class="ann">@Configuration</span>
+<span class="ann">@EnableRedisHttpSession</span>(
+  maxInactiveIntervalInSeconds = <span class="num">1800</span>
+)
+<span class="kw">public class</span> <span class="cls">RedisSessionConfig</span> {
+
+  <span class="ann">@Bean</span>
+  <span class="kw">public</span> LettuceConnectionFactory
+      <span class="cls">connectionFactory</span>() {
+    <span class="kw">return new</span> <span class="cls">LettuceConnectionFactory</span>(
+      <span class="kw">new</span> <span class="cls">RedisStandaloneConfiguration</span>(
+        <span class="str">"localhost"</span>, <span class="num">6379</span>)
+    );
+  }
+}</div>
+    </div>
+    <div>
+      <h4 style="color:var(--yellow);margin-bottom:6px">4️⃣ Controller</h4>
+      <div class="code">
+<span class="ann">@RestController</span>
+<span class="kw">public class</span> <span class="cls">AuthController</span> {
+
+  <span class="ann">@PostMapping</span>(<span class="str">"/login"</span>)
+  <span class="kw">public</span> ResponseEntity login(
+        HttpSession s, <span class="ann">@RequestBody</span> LoginReq r) {
+    s.setAttribute(<span class="str">"user"</span>, r.getUsername());
+    s.setAttribute(<span class="str">"role"</span>, <span class="str">"ADMIN"</span>);
+    <span class="kw">return</span> ResponseEntity.ok(<span class="str">"Logged in"</span>);
+  }
+
+  <span class="ann">@GetMapping</span>(<span class="str">"/me"</span>)
+  <span class="kw">public</span> String me(HttpSession s) {
+    <span class="kw">return</span> (String) s.getAttribute(<span class="str">"user"</span>);
+  }
+
+  <span class="ann">@PostMapping</span>(<span class="str">"/logout"</span>)
+  <span class="kw">public</span> ResponseEntity logout(HttpSession s) {
+    s.invalidate(); <span class="cm">// DEL key in Redis</span>
+    <span class="kw">return</span> ResponseEntity.ok(<span class="str">"Bye!"</span>);
+  }
+}</div>
+    </div>
+  </div>
+  <div class="hl">
+    <h4 style="color:var(--blue);margin-bottom:.8rem">🏗️ Full Architecture — Horizontal Scaling</h4>
+    <div class="flow">
+      <div class="fbox blu"><span>🌐</span><br>Browser<br><small>Cookie: SESSION=id</small></div>
+      <div class="arrow">⟺</div>
+      <div class="fbox grn"><span>⚙️</span><br>Server A<br><small>SessionRepoFilter</small></div>
+      <div class="arrow">⟺</div>
+      <div class="fbox red"><span>🔴</span><br>Redis<br><small>spring:session:*</small></div>
+      <div class="arrow">⟺</div>
+      <div class="fbox grn"><span>⚙️</span><br>Server B<br><small>Same session!</small></div>
+    </div>
+    <p style="text-align:center;margin-top:10px;font-size:.82rem;color:#aaa">The <strong style="color:#fff">SessionRepositoryFilter</strong> transparently intercepts every HTTP request, reading/writing session data from Redis without any code changes.</p>
+  </div>
+</div>
+</div>
+
+<!-- DOTS -->
+<div class="dots">
+  <div class="dot on" onclick="go(0)"></div>
+  <div class="dot" onclick="go(1)"></div>
+  <div class="dot" onclick="go(2)"></div>
+  <div class="dot" onclick="go(3)"></div>
+  <div class="dot" onclick="go(4)"></div>
+  <div class="dot" onclick="go(5)"></div>
+</div>
+
+<script>
+let cur = 0;
+const slides = document.querySelectorAll('.slide');
+const dots = document.querySelectorAll('.dot');
+const tabs = document.querySelectorAll('.tab');
+function go(n) {
+  slides[cur].classList.remove('on');
+  dots[cur].classList.remove('on');
+  tabs[cur].classList.remove('on');
+  cur = n;
+  slides[cur].classList.add('on');
+  dots[cur].classList.add('on');
+  tabs[cur].classList.add('on');
+  window.scrollTo(0,0);
+}
+document.addEventListener('keydown', e => {
+  if (e.key==='ArrowRight' && cur < slides.length-1) go(cur+1);
+  if (e.key==='ArrowLeft' && cur > 0) go(cur-1);
+});
+</script>
+</body>
+</html>
